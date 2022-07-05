@@ -1,0 +1,205 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "appName": {
+        "type": "string",
+        "metadata": {
+          "description": "The name of the function app that you wish to create."
+        }
+      },
+      "storageAccountType": {
+        "type": "string",
+        "allowedValues": [
+          "Standard_LRS",
+          "Standard_GRS",
+          "Standard_RAGRS"
+        ],
+        "metadata": {
+          "description": "Storage Account type"
+        }
+      },
+      "location": {
+        "type": "string",
+        "defaultValue": "[resourceGroup().location]",
+        "metadata": {
+          "description": "Location for all resources."
+        }
+      },
+      "linuxFxVersion": {
+        "type": "string",
+        "metadata": {
+          "description": "The language worker runtime to load in the function app."
+        }
+      },
+      "sku": {
+        "type": "string",
+        "metadata": {
+          "description": "ASP sku name"
+        }
+      },
+      "skuCode": {
+        "type": "string",
+        "metadata": {
+          "description": "ASP sku Code"
+        }
+      },
+      "use32BitWorkerProcess": {
+            "type": "bool"
+      },
+      "serviceBusNamespaceName": {
+      "type": "string",
+        "metadata": {
+          "description": "Name of the Service Bus namespace"
+        }
+      },
+      "serviceBusSku": {
+        "type": "string",
+        "defaultValue": "Standard",
+        "metadata": {
+          "description": "The messaging tier for service Bus namespace"
+        }
+      },
+      "serviceBusQueueName": {
+        "type": "string",
+        "metadata": {
+          "description": "Name of the Queue"
+        }
+      }
+    },
+    "variables": {
+      "functionAppName": "[concat(parameters('appName'),uniquestring(resourceGroup().id))]",
+      "hostingPlanName": "[concat(parameters('appName'),uniquestring(resourceGroup().id))]",
+      "applicationInsightsName": "[concat(parameters('appName'),uniquestring(resourceGroup().id))]",
+      "storageAccountName": "[concat(parameters('appName'),uniquestring(resourceGroup().id))]",
+      "functionWorkerRuntime": "[concat(parameters('appName'),uniquestring(resourceGroup().id))]",
+      "serviceBusQueue": "[parameters('serviceBusQueueName')]",
+      "serviceBusNamespace": "[parameters('serviceBusNamespaceName')]",
+      "runtime": "[parameters('linuxFxVersion')]",
+      "locaiton": "[parameters('location')]"
+    },
+    "resources": [
+      {
+        "condition": "[not(equals(variables('storageAccountName'),'quesn2blmqtbu3sch6'))]",
+        "type": "Microsoft.Storage/storageAccounts",
+        "apiVersion": "2019-06-01",
+        "name": "[variables('storageAccountName')]",
+        "location": "[variables('locaiton')]",
+        "sku": {
+          "name": "[parameters('storageAccountType')]"
+        },
+        "kind": "Storage",
+        "properties": {
+          "supportsHttpsTrafficOnly": true
+        }
+      },
+      {
+        "condition": "[not(equals(variables('hostingPlanName'),'quesn2blmqtbu3sch6'))]",
+        "type": "Microsoft.Web/serverfarms",
+        "apiVersion": "2018-02-01",
+        "name": "[variables('hostingPlanName')]",
+        "location": "[variables('locaiton')]",
+        "kind": "linux",
+        "sku": {
+          "name": "[parameters('skuCode')]",
+          "tier": "[parameters('sku')]"
+        },
+        "properties": {
+          "name": "[variables('hostingPlanName')]",
+          "reserved": true
+        }
+      },
+      {
+        "condition": "[not(equals(variables('functionAppName'),'quesn2blmqtbu3sch6'))]",
+        "type": "Microsoft.Web/sites",
+        "apiVersion": "2018-11-01",
+        "name": "[variables('functionAppName')]",
+        "location": "[variables('locaiton')]",
+        "kind": "functionapp,linux",
+        "dependsOn": [
+          "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+          "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+        ],
+        "properties": {
+          "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+          "clientAffinityEnabled": false,
+          "siteConfig": {
+            "appSettings": [
+              {
+                "name": "AzureWebJobsStorage",
+                "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value)]"
+              },
+              {
+                "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+                "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value)]"
+              },
+              {
+                "name": "WEBSITE_CONTENTSHARE",
+                "value": "[toLower(variables('functionAppName'))]"
+              },
+              {
+                "name": "FUNCTIONS_EXTENSION_VERSION",
+                "value": "~2"
+              },
+              {
+                "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                "value": "[reference(resourceId('microsoft.insights/components', variables('applicationInsightsName')), '2020-02-02-preview').InstrumentationKey]"
+              },
+              {
+                "name": "FUNCTIONS_WORKER_RUNTIME",
+                "value": "[variables('functionWorkerRuntime')]"
+              }
+            ],
+            "use32BitWorkerProcess": "[parameters('use32BitWorkerProcess')]",
+            "linuxFxVersion": "[variables('runtime')]",
+            "alwaysOn": true
+          }
+        }
+      },
+      {
+        "condition": "[not(equals(variables('applicationInsightsName'),'quesn2blmqtbu3sch6'))]",
+        "type": "microsoft.insights/components",
+        "apiVersion": "2018-05-01-preview",
+        "name": "[variables('applicationInsightsName')]",
+        "location": "[variables('locaiton')]",
+        "properties": {
+          "Application_Type": "web",
+          "ApplicationId": "[variables('applicationInsightsName')]",
+          "Request_Source": "rest"
+        }
+      },
+      {
+      "apiVersion": "2018-01-01-preview",
+      "name": "[variables('serviceBusNamespace')]",
+      "type": "Microsoft.ServiceBus/namespaces",
+      "location": "[variables('locaiton')]",
+      "sku": {
+        "name": "[parameters('serviceBusSku')]"
+      },
+      "properties": {},
+      "resources": [
+        {
+          "type": "Queues",
+          "apiVersion": "2017-04-01",
+          "name": "[variables('serviceBusQueue')]",
+          "dependsOn": [
+            "[resourceId('Microsoft.ServiceBus/namespaces',variables('serviceBusNamespace'))]"
+          ],
+          "properties": {
+            "lockDuration": "PT5M",
+            "maxSizeInMegabytes": 1024,
+            "requiresDuplicateDetection": false,
+            "requiresSession": false,
+            "defaultMessageTimeToLive": "P10675199DT2H48M5.4775807S",
+            "deadLetteringOnMessageExpiration": false,
+            "duplicateDetectionHistoryTimeWindow": "PT10M",
+            "maxDeliveryCount": 10,
+            "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S",
+            "enablePartitioning": false,
+            "enableExpress": false
+          }
+        }
+      ]
+      }
+    ]
+  }

@@ -1,0 +1,36 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "appName": {
+            "value": "quesn" 
+        },
+        "storageAccountType": {
+            "value": "Standard_LRS"
+        },
+        "location": {
+            "value": "uksouth" 
+        },
+        "linuxFxVersion": {
+            "value": "Node|10"
+        },
+        "serviceBusNamespaceName": {
+            "value": "servicesvbus"
+        },
+        "serviceBusSku": {
+            "value": "Standard"
+        },
+        "serviceBusQueueName": {
+            "value": "questionnair" 
+        },
+        "sku": {
+            "value": "Basic"
+        },
+        "skuCode": {
+            "value": "B2" 
+        },
+        "use32BitWorkerProcess": {
+            "value": false 
+        }
+    }
+}
